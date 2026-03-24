@@ -145,6 +145,67 @@ async def list_licenses(
     return APIResponse(data=items)
 
 
+@router.get("/purchases", response_model=APIResponse)
+async def list_purchases(
+    current_user: Annotated[MarketUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = 1,
+    page_size: int = 20,
+):
+    """List purchases for plugins authored by the current user."""
+    page_size = min(page_size, 100)
+    offset = (page - 1) * page_size
+
+    from sqlalchemy import func
+    from sqlalchemy.orm import selectinload
+
+    # Count total
+    count_q = (
+        select(func.count())
+        .select_from(Purchase)
+        .join(Plugin, Plugin.id == Purchase.plugin_id_fk)
+        .where(Plugin.author_id == current_user.id)
+    )
+    total_result = await db.execute(count_q)
+    total = total_result.scalar() or 0
+
+    # Fetch purchases where the current user is the plugin author
+    query = (
+        select(Purchase, Plugin.plugin_id, Plugin.name.label("plugin_name"))
+        .join(Plugin, Plugin.id == Purchase.plugin_id_fk)
+        .where(Plugin.author_id == current_user.id)
+        .order_by(Purchase.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    result = await db.execute(query)
+    rows = result.all()
+
+    items = [
+        {
+            "id": purchase.id,
+            "plugin_id": plugin_id_str,
+            "plugin_name": plugin_name,
+            "buyer_id": purchase.user_id,
+            "amount_cents": purchase.amount_cents,
+            "currency": purchase.currency,
+            "platform_fee_cents": purchase.platform_fee_cents,
+            "developer_payout_cents": purchase.developer_payout_cents,
+            "status": purchase.status,
+            "created_at": purchase.created_at.isoformat() if purchase.created_at else None,
+        }
+        for purchase, plugin_id_str, plugin_name in rows
+    ]
+
+    return APIResponse(data={
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size,
+    })
+
+
 @router.get("/licenses/{license_key}/validate", response_model=APIResponse)
 async def validate_license(
     license_key: str,

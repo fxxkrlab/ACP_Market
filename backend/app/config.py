@@ -28,6 +28,24 @@ class Settings(BaseSettings):
     # Signing
     ED25519_PRIVATE_KEY: str = ""  # PEM format, for signing bundles
 
+    # Email / SMTP
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
+    SMTP_FROM: str = "noreply@acpmarket.novahelix.org"
+    SMTP_USE_TLS: bool = True
+    SENDGRID_API_KEY: str = ""
+
+    # Password reset
+    PASSWORD_RESET_EXPIRE_MINUTES: int = 30
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Cookie Auth
+    COOKIE_NAME: str = "acp_session"
+    COOKIE_SECURE: bool = True  # Set False for local dev (HTTP)
+    SESSION_COOKIE_MAX_AGE_DAYS: int = 30  # For "remember me"
+
     # Market
     MARKET_DOMAIN: str = "acpmarket.novahelix.org"
     CDN_DOMAIN: str = "cdn.acpmarket.novahelix.org"
@@ -36,7 +54,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Admin
-    INIT_ADMIN_EMAIL: str = "admin@novahelix.com"
+    INIT_ADMIN_EMAIL: str = "admin@novahelix.org"
     INIT_ADMIN_PASSWORD: str = "changeme"
 
     DEBUG: bool = False

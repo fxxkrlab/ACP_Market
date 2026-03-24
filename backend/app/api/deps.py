@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_async_session
 from app.models.user import MarketUser
 from app.utils.security import decode_token
@@ -20,20 +21,37 @@ async def get_db() -> AsyncSession:
         yield session
 
 
+def _extract_token(
+    credentials: HTTPAuthorizationCredentials | None,
+    request: Request,
+) -> str | None:
+    """Extract access token: cookie first, then Authorization header."""
+    # 1. HttpOnly cookie
+    cookie_token = request.cookies.get(settings.COOKIE_NAME)
+    if cookie_token:
+        return cookie_token
+    # 2. Bearer header (fallback for API key usage / non-browser clients)
+    if credentials:
+        return credentials.credentials
+    return None
+
+
 async def get_current_user(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None, Depends(security_scheme)
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request = None,
 ) -> MarketUser:
-    """Extract and validate the current user from the JWT token."""
-    if credentials is None:
+    """Extract and validate the current user from cookie or JWT token."""
+    token = _extract_token(credentials, request)
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
 
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -66,11 +84,13 @@ async def get_optional_user(
         HTTPAuthorizationCredentials | None, Depends(security_scheme)
     ],
     db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request = None,
 ) -> MarketUser | None:
     """Optionally extract the current user. Returns None if no auth."""
-    if credentials is None:
+    token = _extract_token(credentials, request)
+    if token is None:
         return None
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         return None
     user_id = payload.get("sub")

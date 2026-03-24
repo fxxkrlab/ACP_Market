@@ -45,6 +45,7 @@ async def list_plugins(
     page_size: int = 20,
     pricing: str = "all",
     min_panel_version: Optional[str] = None,
+    author_id: Optional[int] = None,
 ):
     """List/search plugins (public)."""
     page_size = min(page_size, 100)
@@ -66,6 +67,10 @@ async def list_plugins(
     # Category filter
     if category:
         query = query.where(Plugin.categories.contains([category]))
+
+    # Author filter
+    if author_id is not None:
+        query = query.where(Plugin.author_id == author_id)
 
     # Pricing filter
     if pricing == "free":

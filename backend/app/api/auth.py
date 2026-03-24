@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,20 +14,24 @@ from app.models.user import MarketUser
 from app.schemas.auth import (
     ApiKeyCreate,
     ApiKeyResponse,
+    ForgotPasswordRequest,
     LoginRequest,
     PasswordChangeRequest,
     RefreshRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
 from app.schemas.common import APIResponse
 from app.utils.security import (
+    clear_auth_cookies,
     create_access_token,
     create_refresh_token,
     decode_token,
     generate_api_key,
     hash_password,
+    set_auth_cookies,
     verify_password,
 )
 
@@ -75,14 +80,20 @@ async def register(
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)
 
-    user_data = UserResponse.model_validate(user).model_dump()
-    user_data["tokens"] = TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=900,
-    ).model_dump()
+    data = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": 900,
+        "user": UserResponse.model_validate(user).model_dump(),
+    }
 
-    return APIResponse(code=201, message="Registration successful", data=user_data)
+    response = JSONResponse(
+        status_code=201,
+        content=APIResponse(code=201, message="Registration successful", data=data).model_dump(),
+    )
+    set_auth_cookies(response, access_token, refresh_token, remember=False)
+    return response
 
 
 @router.post("/login", response_model=APIResponse)
@@ -111,22 +122,38 @@ async def login(
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)
 
-    return APIResponse(data={
+    data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
         "expires_in": 900,
         "user": UserResponse.model_validate(user).model_dump(),
-    })
+    }
+    response = JSONResponse(content=APIResponse(data=data).model_dump())
+    set_auth_cookies(response, access_token, refresh_token, remember=body.remember_me)
+    return response
 
 
 @router.post("/refresh", response_model=APIResponse)
 async def refresh(
+    request: Request,
     body: RefreshRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Refresh an expired access token."""
-    payload = decode_token(body.refresh_token)
+    from app.config import settings as cfg
+
+    # Try body first, then fall back to cookie
+    token = body.refresh_token
+    if not token:
+        token = request.cookies.get(f"{cfg.COOKIE_NAME}_refresh")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_REFRESH_TOKEN", "message": "No refresh token provided"},
+        )
+
+    payload = decode_token(token)
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -148,12 +175,23 @@ async def refresh(
     access_token = create_access_token(user.id, user.role)
     new_refresh_token = create_refresh_token(user.id)
 
-    return APIResponse(data={
+    data = {
         "access_token": access_token,
         "refresh_token": new_refresh_token,
         "token_type": "bearer",
         "expires_in": 900,
-    })
+    }
+    response = JSONResponse(content=APIResponse(data=data).model_dump())
+    set_auth_cookies(response, access_token, new_refresh_token, remember=True)
+    return response
+
+
+@router.post("/logout", response_model=APIResponse)
+async def logout():
+    """Clear auth cookies."""
+    response = JSONResponse(content=APIResponse(message="Logged out").model_dump())
+    clear_auth_cookies(response)
+    return response
 
 
 @router.get("/me", response_model=APIResponse)
@@ -260,6 +298,79 @@ async def revoke_api_key(
     await db.flush()
 
     return APIResponse(message="API key revoked")
+
+
+@router.post("/forgot-password", response_model=APIResponse)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Send a password reset email. Always returns 200 to prevent email enumeration."""
+    import secrets
+    from datetime import datetime, timedelta
+
+    from app.config import settings as cfg
+    from app.utils.email import send_email
+
+    result = await db.execute(
+        select(MarketUser).where(MarketUser.email == body.email)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is not None:
+        token = secrets.token_urlsafe(48)
+        user.password_reset_token = token
+        user.password_reset_expires = datetime.utcnow() + timedelta(
+            minutes=cfg.PASSWORD_RESET_EXPIRE_MINUTES
+        )
+        await db.flush()
+
+        reset_url = f"{cfg.FRONTEND_URL}/reset-password?token={token}"
+        html = (
+            f"<h2>Password Reset</h2>"
+            f"<p>Click the link below to reset your password. "
+            f"This link expires in {cfg.PASSWORD_RESET_EXPIRE_MINUTES} minutes.</p>"
+            f'<p><a href="{reset_url}">Reset Password</a></p>'
+            f"<p>If you didn't request this, you can ignore this email.</p>"
+        )
+        await send_email(body.email, "ACP Market — Password Reset", html)
+
+    return APIResponse(message="If that email exists, a reset link has been sent.")
+
+
+@router.post("/reset-password", response_model=APIResponse)
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reset password using the token from the email link."""
+    from datetime import datetime
+
+    result = await db.execute(
+        select(MarketUser).where(
+            MarketUser.password_reset_token == body.token,
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    if user.password_reset_expires is None or user.password_reset_expires < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired",
+        )
+
+    user.password_hash = hash_password(body.new_password)
+    user.password_reset_token = None
+    user.password_reset_expires = None
+    await db.flush()
+
+    return APIResponse(message="Password has been reset successfully.")
 
 
 @router.post("/change-password", response_model=APIResponse)
