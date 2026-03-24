@@ -16,6 +16,29 @@
 - **Developer Dashboard** — Plugin stats, revenue tracking, CSV export
 - **Marketplace UI** — Search, category filter, sort, pagination
 
+## Screenshots
+
+### Plugin Marketplace (Public)
+![Marketplace](docs/designs/01-public-marketplace.png)
+
+### Login / Register
+![Login](docs/designs/02-login-register.png)
+
+### Developer Dashboard
+![Dashboard](docs/designs/03-developer-dashboard.png)
+
+### Plugin Submission
+![Submit Plugin](docs/designs/04-plugin-submission.png)
+
+### Revenue & Stripe Integration
+![Revenue](docs/designs/05-revenue-stripe.png)
+
+### Review Queue (Reviewer View)
+![Review Queue](docs/designs/06-review-queue.png)
+
+### Admin Panel
+![Admin Panel](docs/designs/07-admin-panel.png)
+
 ## Architecture
 
 ```

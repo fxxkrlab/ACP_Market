@@ -16,6 +16,29 @@
 - **开发者仪表盘** — 插件统计、收入追踪、CSV 导出
 - **插件市场 UI** — 搜索、分类筛选、排序、分页
 
+## 界面预览
+
+### 插件市场（公开页面）
+![插件市场](docs/designs/01-public-marketplace.png)
+
+### 登录 / 注册
+![登录注册](docs/designs/02-login-register.png)
+
+### 开发者仪表盘
+![开发者仪表盘](docs/designs/03-developer-dashboard.png)
+
+### 插件提交
+![插件提交](docs/designs/04-plugin-submission.png)
+
+### 收入与 Stripe 对接
+![收入页面](docs/designs/05-revenue-stripe.png)
+
+### 审核队列（审核员视角）
+![审核队列](docs/designs/06-review-queue.png)
+
+### 管理面板
+![管理面板](docs/designs/07-admin-panel.png)
+
 ## 架构概览
 
 ```
