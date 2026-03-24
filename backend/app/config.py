@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -40,6 +43,17 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
+    @model_validator(mode='after')
+    def check_production_settings(self):
+        logger = logging.getLogger("acp_market.config")
+        if self.JWT_SECRET_KEY == "CHANGE-ME-IN-PRODUCTION":
+            logger.warning("JWT_SECRET_KEY is using default value! Change it in production.")
+        if not self.STRIPE_SECRET_KEY:
+            logger.warning("STRIPE_SECRET_KEY is not set. Billing features disabled.")
+        if self.INIT_ADMIN_PASSWORD == "changeme":
+            logger.warning("INIT_ADMIN_PASSWORD is using default! Change it immediately.")
+        return self
 
 
 settings = Settings()

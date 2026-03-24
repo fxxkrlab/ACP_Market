@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Annotated, Optional
 
@@ -18,6 +19,8 @@ from app.models.billing import License
 from app.models.plugin import Plugin, PluginVersion
 from app.models.user import MarketUser
 from app.schemas.common import APIResponse
+from packaging.version import Version
+
 from app.schemas.plugin import (
     CheckUpdatesRequest,
     CheckUpdatesResponse,
@@ -242,6 +245,13 @@ async def submit_plugin(
             detail="plugin_id is required in metadata",
         )
 
+    # Validate plugin_id format (path traversal prevention)
+    if not re.match(r'^[a-z][a-z0-9-]{2,49}$', plugin_id_str):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid plugin ID format",
+        )
+
     # Check uniqueness
     result = await db.execute(
         select(Plugin).where(Plugin.plugin_id == plugin_id_str)
@@ -254,15 +264,33 @@ async def submit_plugin(
 
     version_str = meta.get("version", "1.0.0")
 
+    # Validate version format (path traversal prevention)
+    if not re.match(r'^\d+\.\d+\.\d+$', version_str):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid version format",
+        )
+
     # Read and hash the bundle
+    MAX_BUNDLE_SIZE = 100 * 1024 * 1024  # 100MB
     content = await bundle.read()
+    if len(content) > MAX_BUNDLE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Bundle too large (max 100MB)",
+        )
     bundle_hash = hashlib.sha256(content).hexdigest()
     bundle_size = len(content)
 
     # Save bundle to storage
-    storage_dir = os.path.join(
+    storage_dir = os.path.normpath(os.path.join(
         settings.PLUGIN_STORAGE_PATH, plugin_id_str, version_str
-    )
+    ))
+    if not storage_dir.startswith(os.path.normpath(settings.PLUGIN_STORAGE_PATH)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid path",
+        )
     os.makedirs(storage_dir, exist_ok=True)
     bundle_path = os.path.join(storage_dir, "bundle.zip")
     with open(bundle_path, "wb") as f:
@@ -359,6 +387,20 @@ async def submit_version(
             detail="version is required in metadata",
         )
 
+    # Validate version format (path traversal prevention)
+    if not re.match(r'^\d+\.\d+\.\d+$', version_str):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid version format",
+        )
+
+    # Validate plugin_id format (path traversal prevention)
+    if not re.match(r'^[a-z][a-z0-9-]{2,49}$', plugin_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid plugin ID format",
+        )
+
     # Check version doesn't already exist
     result = await db.execute(
         select(PluginVersion).where(
@@ -373,14 +415,25 @@ async def submit_version(
         )
 
     # Read and hash the bundle
+    MAX_BUNDLE_SIZE = 100 * 1024 * 1024  # 100MB
     content = await bundle.read()
+    if len(content) > MAX_BUNDLE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Bundle too large (max 100MB)",
+        )
     bundle_hash = hashlib.sha256(content).hexdigest()
     bundle_size = len(content)
 
     # Save bundle
-    storage_dir = os.path.join(
+    storage_dir = os.path.normpath(os.path.join(
         settings.PLUGIN_STORAGE_PATH, plugin_id, version_str
-    )
+    ))
+    if not storage_dir.startswith(os.path.normpath(settings.PLUGIN_STORAGE_PATH)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid path",
+        )
     os.makedirs(storage_dir, exist_ok=True)
     bundle_path = os.path.join(storage_dir, "bundle.zip")
     with open(bundle_path, "wb") as f:
@@ -512,8 +565,8 @@ async def check_updates(
         if not approved:
             continue
 
-        # Sort by version (simple string compare; semantic versioning)
-        approved.sort(key=lambda v: v.version, reverse=True)
+        # Sort by semantic version
+        approved.sort(key=lambda v: Version(v.version), reverse=True)
         latest = approved[0]
 
         if latest.version != installed.version:

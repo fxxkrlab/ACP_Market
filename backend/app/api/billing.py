@@ -57,13 +57,13 @@ async def create_checkout(
             detail="Cannot checkout a free plugin",
         )
 
-    # Check for existing active license
+    # Check for existing active license (with pessimistic locking to prevent race condition)
     existing = await db.execute(
         select(License).where(
             License.plugin_id_fk == plugin.id,
             License.user_id == current_user.id,
             License.status == "active",
-        )
+        ).with_for_update()
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
@@ -210,13 +210,31 @@ async def stripe_webhook(
     if event.type == "checkout.session.completed":
         session_data = event.data.object
         metadata = session_data.get("metadata", {})
-        plugin_id_str = metadata.get("plugin_id")
-        version_str = metadata.get("version")
-        user_id = metadata.get("user_id")
+        if not metadata:
+            logger.warning("Webhook missing metadata, event_id=%s", event.id)
+            return {"status": "ignored", "reason": "no_metadata"}
 
-        if not all([plugin_id_str, user_id]):
-            logger.warning("Webhook missing metadata: %s", metadata)
-            return {"status": "ignored"}
+        try:
+            user_id = int(metadata.get("user_id", ""))
+            plugin_id_str = metadata.get("plugin_id", "")
+            version_str = metadata.get("version", "")
+        except (ValueError, TypeError):
+            logger.error("Invalid metadata in webhook: %s", metadata)
+            return {"status": "error", "reason": "invalid_metadata"}
+
+        if not plugin_id_str or not version_str:
+            logger.error("Missing plugin_id or version in webhook metadata")
+            return {"status": "error", "reason": "incomplete_metadata"}
+
+        # Idempotency check: skip if this Stripe session was already processed
+        stripe_session_id = session_data.get("id")
+        if stripe_session_id:
+            existing_purchase = await db.execute(
+                select(Purchase).where(Purchase.stripe_session_id == stripe_session_id)
+            )
+            if existing_purchase.scalar_one_or_none() is not None:
+                logger.info("Webhook already processed for session %s", stripe_session_id)
+                return {"status": "already_processed"}
 
         # Lookup plugin
         result = await db.execute(
@@ -242,7 +260,7 @@ async def stripe_webhook(
         license_record = License(
             license_key=license_key,
             plugin_id_fk=plugin.id,
-            user_id=int(user_id),
+            user_id=user_id,
             license_type=plugin.pricing_model,
             status="active",
             stripe_payment_intent_id=session_data.get("payment_intent"),
@@ -258,18 +276,18 @@ async def stripe_webhook(
         developer_payout = amount_cents - platform_fee
 
         purchase = Purchase(
-            user_id=int(user_id),
+            user_id=user_id,
             plugin_id_fk=plugin.id,
             license_id=license_record.id,
             amount_cents=amount_cents,
             currency=plugin.currency,
             platform_fee_cents=platform_fee,
             developer_payout_cents=developer_payout,
-            stripe_session_id=session_data.get("id"),
+            stripe_session_id=stripe_session_id,
             status="completed",
         )
         db.add(purchase)
-        await db.flush()
+        await db.commit()
 
         logger.info(
             "License created: %s for plugin %s, user %s",

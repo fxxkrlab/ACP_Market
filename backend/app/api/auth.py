@@ -14,6 +14,7 @@ from app.schemas.auth import (
     ApiKeyCreate,
     ApiKeyResponse,
     LoginRequest,
+    PasswordChangeRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -170,6 +171,16 @@ async def create_api_key(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Generate a new API key. Returns the raw key ONCE."""
+    VALID_SCOPES = {"registry:read", "registry:write", "billing:read", "billing:write"}
+
+    if body.scopes:
+        invalid = set(body.scopes) - VALID_SCOPES
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid scopes: {', '.join(sorted(invalid))}",
+            )
+
     raw_key, key_hash = generate_api_key()
 
     api_key = ApiKey(
@@ -249,3 +260,20 @@ async def revoke_api_key(
     await db.flush()
 
     return APIResponse(message="API key revoked")
+
+
+@router.post("/change-password", response_model=APIResponse)
+async def change_password(
+    body: PasswordChangeRequest,
+    current_user: Annotated[MarketUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Change the current user's password."""
+    if not verify_password(body.old_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect current password",
+        )
+    current_user.password_hash = hash_password(body.new_password)
+    await db.flush()
+    return APIResponse(message="Password changed successfully")
