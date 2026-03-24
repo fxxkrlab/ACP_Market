@@ -1,35 +1,34 @@
 # ACP Market
 
-[中文版](./README.zh-CN.md)
+[English](./README.en.md)
 
-**ACP Market** is the official plugin marketplace for [AdminChat Panel](https://github.com/fxxkrlab). Developers can publish, distribute, and monetize plugins while users discover and install them with one click.
+**ACP Market** 是 [AdminChat Panel](https://github.com/fxxkrlab) 的官方插件市场。开发者可以发布、分发和变现插件，用户可以一键发现和安装。
 
-## Features
+## 功能特性
 
-- **Plugin Registry** — Publish, version, and manage plugins with semantic versioning
-- **Review Workflow** — Multi-stage review pipeline (pending → approved / rejected / changes requested)
-- **Stripe Billing** — One-time & subscription pricing, automatic license generation, 70/30 revenue split
-- **Role-Based Access** — User, Developer, Reviewer, Admin, Super Admin
-- **HttpOnly Cookie Auth** — Secure JWT auth with refresh token rotation and Remember Me
-- **Password Reset** — SMTP + SendGrid email with token-based reset flow
-- **Admin Dashboard** — User management, platform stats, plugin moderation
-- **Developer Dashboard** — Plugin stats, revenue tracking, CSV export
-- **Marketplace UI** — Search, category filter, sort, pagination
+- **插件注册中心** — 发布、版本管理，支持语义化版本
+- **审核工作流** — 多阶段审核流水线（待审核 → 通过 / 拒绝 / 需修改）
+- **Stripe 计费** — 一次性付费和订阅制，自动生成许可证，70/30 收入分成
+- **角色权限控制** — 用户、开发者、审核员、管理员、超级管理员
+- **HttpOnly Cookie 认证** — 安全 JWT 认证，刷新令牌轮换，记住我功能
+- **密码重置** — SMTP + SendGrid 邮件，基于令牌的重置流程
+- **管理后台** — 用户管理、平台统计、插件审核
+- **开发者仪表盘** — 插件统计、收入追踪、CSV 导出
+- **插件市场 UI** — 搜索、分类筛选、排序、分页
 
-## Architecture
+## 架构概览
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    Frontend (React)                   │
-│  Vite + React 19 + Tailwind CSS v4 + Zustand         │
-│  Pages: Marketplace, Login, Dashboard, Revenue,       │
-│         ReviewQueue, AdminPanel, ResetPassword         │
+│                   前端 (React)                        │
+│  Vite + React 19 + Tailwind CSS v4 + Zustand          │
+│  页面: 市场、登录、仪表盘、收入、审核队列、管理面板       │
 └──────────────────────┬──────────────────────────────┘
-                       │ HTTP (cookie + JSON)
+                       │ HTTP (Cookie + JSON)
 ┌──────────────────────▼──────────────────────────────┐
-│                  Backend (FastAPI)                     │
-│  Async Python 3.12 + SQLAlchemy 2.0 + asyncpg         │
-│  Endpoints: /auth, /plugins, /billing, /review, /admin │
+│                  后端 (FastAPI)                        │
+│  异步 Python 3.12 + SQLAlchemy 2.0 + asyncpg           │
+│  接口: /auth, /plugins, /billing, /review, /admin      │
 └──────┬───────────────┬──────────────────────────────┘
        │               │
   ┌────▼────┐   ┌──────▼──────┐
@@ -38,71 +37,71 @@
   └─────────┘   └─────────────┘
 ```
 
-## Auth Flow
+## 认证流程
 
 ```
-┌────────┐     POST /auth/login      ┌─────────┐
-│ Browser │ ──────────────────────►  │ Backend  │
+┌────────┐    POST /auth/login       ┌─────────┐
+│ 浏览器  │ ──────────────────────►  │  后端    │
 │         │ ◄──────────────────────  │         │
 │         │  Set-Cookie: acp_session  │         │
 │         │  Set-Cookie: refresh      │         │
 └────┬───┘                           └────┬────┘
      │                                     │
-     │  GET /auth/me (cookie auto-sent)    │
+     │  GET /auth/me (Cookie 自动发送)      │
      │ ──────────────────────────────────► │
      │ ◄────────────────────────────────── │
-     │       { user object }               │
+     │        { 用户对象 }                  │
      │                                     │
-     │  401 → POST /auth/refresh (cookie)  │
+     │  401 → POST /auth/refresh (Cookie)  │
      │ ──────────────────────────────────► │
      │ ◄────────────────────────────────── │
-     │   New cookies set                   │
+     │   刷新 Cookie                        │
 ```
 
-## Plugin Lifecycle
+## 插件生命周期
 
 ```
-Developer                Reviewer                System
-    │                       │                       │
-    │  POST /plugins        │                       │
-    │  (zip + metadata)     │                       │
-    │──────────────────────►│                       │
-    │                       │                       │
-    │               GET /review/queue               │
-    │                       │──────────────────────►│
-    │                       │                       │
-    │              POST /review/:id/approve         │
-    │                       │──────────────────────►│
-    │                       │                  is_published=true
-    │                       │                       │
-    │                  Plugin visible in Marketplace │
+开发者                   审核员                   系统
+  │                       │                       │
+  │  POST /plugins        │                       │
+  │  (zip + 元数据)        │                       │
+  │──────────────────────►│                       │
+  │                       │                       │
+  │              GET /review/queue                 │
+  │                       │──────────────────────►│
+  │                       │                       │
+  │             POST /review/:id/approve           │
+  │                       │──────────────────────►│
+  │                       │                 is_published=true
+  │                       │                       │
+  │                  插件在市场可见                  │
 ```
 
-## Billing Flow
+## 计费流程
 
 ```
-Buyer           Frontend        Backend          Stripe
-  │  Click Buy     │               │               │
-  │───────────────►│  POST /billing/checkout        │
-  │                │──────────────►│               │
-  │                │               │  Create Session│
-  │                │               │──────────────►│
-  │                │  checkout_url  │               │
-  │◄───────────────│◄──────────────│               │
-  │                │               │               │
-  │  Pay on Stripe │               │               │
-  │───────────────────────────────────────────────►│
-  │                │               │  Webhook       │
-  │                │               │◄──────────────│
-  │                │               │               │
-  │                │          Create License        │
-  │                │          Create Purchase        │
-  │                │          (70/30 split)          │
+买家            前端            后端             Stripe
+  │  点击购买    │               │               │
+  │────────────►│ POST /billing/checkout         │
+  │             │──────────────►│               │
+  │             │               │  创建会话      │
+  │             │               │──────────────►│
+  │             │  checkout_url  │               │
+  │◄────────────│◄──────────────│               │
+  │             │               │               │
+  │  在 Stripe 支付              │               │
+  │───────────────────────────────────────────►│
+  │             │               │  Webhook 回调  │
+  │             │               │◄──────────────│
+  │             │               │               │
+  │             │          创建许可证             │
+  │             │          创建购买记录           │
+  │             │          (70/30 分成)           │
 ```
 
-## Quick Start
+## 快速开始
 
-### Docker (Recommended)
+### Docker（推荐）
 
 ```bash
 git clone https://github.com/fxxkrlab/ACP_Market.git
@@ -110,84 +109,83 @@ cd ACP_Market
 docker compose up --build
 ```
 
-| Service    | URL                     |
-|------------|-------------------------|
-| Frontend   | http://localhost:5173   |
-| Backend    | http://localhost:8001   |
+| 服务       | 地址                    |
+|-----------|-------------------------|
+| 前端       | http://localhost:5173   |
+| 后端 API   | http://localhost:8001   |
 | PostgreSQL | localhost:5433          |
 | Redis      | localhost:6380          |
 
-Default admin: `admin@novahelix.org` / `changeme`
+默认管理员账号: `admin@novahelix.org` / `changeme`
 
-### Manual
+### 手动部署
 
-**Prerequisites:** Python 3.12+, Node.js 20+, PostgreSQL 16+, Redis 7+
+**前置要求:** Python 3.12+, Node.js 20+, PostgreSQL 16+, Redis 7+
 
 ```bash
-# Backend
+# 后端
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 
-# Frontend (another terminal)
+# 前端 (另一个终端)
 cd frontend
 npm install
 npm run dev
 ```
 
-## Environment Variables
+## 环境变量
 
-Copy `.env.example` to `.env` and customize:
+复制 `.env.example` 为 `.env` 并修改：
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:postgres@localhost:5432/acp_market` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379/1` |
-| `JWT_SECRET_KEY` | JWT signing secret | `CHANGE-ME-IN-PRODUCTION` |
-| `STRIPE_SECRET_KEY` | Stripe API key | (empty) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | (empty) |
-| `SMTP_HOST` | SMTP server | (empty) |
-| `SENDGRID_API_KEY` | SendGrid fallback | (empty) |
-| `INIT_ADMIN_EMAIL` | Initial admin email | `admin@novahelix.org` |
-| `INIT_ADMIN_PASSWORD` | Initial admin password | `changeme` |
-| `COOKIE_SECURE` | Set `false` for local HTTP dev | `true` |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DATABASE_URL` | PostgreSQL 连接字符串 | `postgresql+asyncpg://postgres:postgres@localhost:5432/acp_market` |
+| `REDIS_URL` | Redis 连接字符串 | `redis://localhost:6379/1` |
+| `JWT_SECRET_KEY` | JWT 签名密钥 | `CHANGE-ME-IN-PRODUCTION` |
+| `STRIPE_SECRET_KEY` | Stripe API 密钥 | (空) |
+| `SMTP_HOST` | SMTP 服务器 | (空) |
+| `SENDGRID_API_KEY` | SendGrid 备用 | (空) |
+| `INIT_ADMIN_EMAIL` | 初始管理员邮箱 | `admin@novahelix.org` |
+| `INIT_ADMIN_PASSWORD` | 初始管理员密码 | `changeme` |
+| `COOKIE_SECURE` | 本地 HTTP 开发设为 `false` | `true` |
 
-## Project Structure
+## 项目结构
 
 ```
 ACP_Market/
 ├── backend/
 │   └── app/
-│       ├── api/          # Route handlers (auth, plugins, billing, review, admin)
-│       ├── models/       # SQLAlchemy ORM models
-│       ├── schemas/      # Pydantic request/response schemas
-│       ├── utils/        # Security, email, init helpers
-│       ├── config.py     # Pydantic Settings
-│       ├── database.py   # Async engine + session
-│       └── main.py       # FastAPI app entry
+│       ├── api/          # 路由处理 (auth, plugins, billing, review, admin)
+│       ├── models/       # SQLAlchemy ORM 模型
+│       ├── schemas/      # Pydantic 请求/响应模式
+│       ├── utils/        # 安全、邮件、初始化工具
+│       ├── config.py     # 配置管理
+│       ├── database.py   # 异步数据库引擎
+│       └── main.py       # FastAPI 应用入口
 ├── frontend/
 │   └── src/
-│       ├── api/          # Axios client with cookie auth
+│       ├── api/          # Axios 客户端 (Cookie 认证)
 │       ├── components/   # Modal, Sidebar, PluginCard, StatusBadge
-│       ├── constants/    # Roles, version
-│       ├── pages/        # All page components
-│       ├── stores/       # Zustand auth store
-│       └── utils/        # formatNumber, formatCurrency, escapeCsvCell
+│       ├── constants/    # 角色、版本号
+│       ├── pages/        # 所有页面组件
+│       ├── stores/       # Zustand 状态管理
+│       └── utils/        # 格式化工具函数
 ├── docker-compose.yml
 ├── Dockerfile
 └── docs/
 ```
 
-## Versioning
+## 版本管理
 
-Starting from `v0.1.0`:
-- Patch (`+0.0.1`): bug fixes, minor tweaks
-- Minor (`+0.1.0`): new features, significant changes
-- No duplicate version tags
+从 `v0.1.0` 开始：
+- 补丁版本 (`+0.0.1`)：Bug 修复、小调整
+- 次版本 (`+0.1.0`)：新功能、重大变更
+- 不允许重复版本标签
 
-## License
+## 许可证
 
-MIT License. See [LICENSE](./LICENSE).
+MIT License. 详见 [LICENSE](./LICENSE)。
 
 ---
 
