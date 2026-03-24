@@ -1,0 +1,45 @@
+from __future__ import annotations
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # Database
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/acp_market"
+    REDIS_URL: str = "redis://localhost:6379/1"
+
+    # JWT
+    JWT_SECRET_KEY: str = "CHANGE-ME-IN-PRODUCTION"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    # Storage
+    PLUGIN_STORAGE_PATH: str = "/data/plugins"  # Local path for plugin bundles
+
+    # Stripe
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PLATFORM_FEE_PERCENT: int = 30
+
+    # Signing
+    ED25519_PRIVATE_KEY: str = ""  # PEM format, for signing bundles
+
+    # Market
+    MARKET_DOMAIN: str = "acpmarket.novahelix.org"
+    CDN_DOMAIN: str = "cdn.acpmarket.novahelix.org"
+
+    # CORS
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+
+    # Admin
+    INIT_ADMIN_EMAIL: str = "admin@novahelix.com"
+    INIT_ADMIN_PASSWORD: str = "changeme"
+
+    DEBUG: bool = False
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()
