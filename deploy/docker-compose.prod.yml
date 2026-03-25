@@ -1,0 +1,29 @@
+services:
+  acpmarket-backend:
+    image: ghcr.io/fxxkrlab/acp_market:0.1.1
+    container_name: acpmarket-backend
+    restart: unless-stopped
+    env_file: .env.production
+    networks:
+      - uhdadmin_internal
+    volumes:
+      - /opt/acp_market/data/plugins:/data/plugins
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  acpmarket-frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: acpmarket-frontend
+    restart: unless-stopped
+    networks:
+      - uhdadmin_internal
+
+networks:
+  uhdadmin_internal:
+    external: true
