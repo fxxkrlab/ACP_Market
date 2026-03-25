@@ -8,6 +8,17 @@ Version format: `MAJOR.MINOR.PATCH` starting at `0.1.0`
 
 ---
 
+## [0.1.1] - 2026-03-26
+
+### Fixed
+- Show plugin author name in review queue cards and plugin cards
+- README now uses Chinese as the default language with English link
+
+### Changed
+- Added 7 UI design screenshots to both README (CN/EN)
+
+---
+
 ## [0.1.0] - 2026-03-25
 
 ### Added
