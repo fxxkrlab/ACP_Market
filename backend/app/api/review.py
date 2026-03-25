@@ -51,12 +51,15 @@ async def review_queue(
     result = await db.execute(
         query.offset(offset)
         .limit(page_size)
-        .options(selectinload(PluginVersion.plugin))
+        .options(
+            selectinload(PluginVersion.plugin).selectinload(Plugin.author)
+        )
     )
     submissions = result.scalars().all()
 
     items = []
     for s in submissions:
+        author = s.plugin.author if s.plugin else None
         items.append({
             "id": s.id,
             "plugin_id": s.plugin.plugin_id if s.plugin else None,
@@ -65,6 +68,8 @@ async def review_queue(
             "review_status": s.review_status,
             "bundle_size": s.bundle_size,
             "bundle_hash": s.bundle_hash,
+            "author_name": author.display_name if author else "Unknown",
+            "author_username": author.username if author else "unknown",
             "created_at": s.created_at.isoformat() if s.created_at else None,
         })
 
@@ -86,7 +91,9 @@ async def review_detail(
     result = await db.execute(
         select(PluginVersion)
         .where(PluginVersion.id == submission_id)
-        .options(selectinload(PluginVersion.plugin))
+        .options(
+            selectinload(PluginVersion.plugin).selectinload(Plugin.author)
+        )
     )
     version = result.scalar_one_or_none()
 
@@ -96,6 +103,7 @@ async def review_detail(
             detail="Submission not found",
         )
 
+    author = version.plugin.author if version.plugin else None
     return APIResponse(data={
         "id": version.id,
         "plugin_id": version.plugin.plugin_id if version.plugin else None,
@@ -109,6 +117,8 @@ async def review_detail(
         "review_status": version.review_status,
         "review_notes": version.review_notes,
         "reviewed_by": version.reviewed_by,
+        "author_name": author.display_name if author else "Unknown",
+        "author_username": author.username if author else "unknown",
         "published_at": version.published_at.isoformat() if version.published_at else None,
         "created_at": version.created_at.isoformat() if version.created_at else None,
     })

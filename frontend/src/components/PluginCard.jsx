@@ -20,7 +20,7 @@ export default function PluginCard({ plugin }) {
         </div>
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-text-primary group-hover:text-primary transition-colors truncate">{plugin.name}</h3>
-          <p className="text-xs text-text-tertiary">by {plugin.author?.display_name || plugin.author?.username || 'Unknown'}</p>
+          <p className="text-xs text-text-tertiary">by {plugin.author_name || plugin.author?.display_name || plugin.author?.username || 'Unknown'}</p>
         </div>
       </div>
       <div className="px-5 pb-2">

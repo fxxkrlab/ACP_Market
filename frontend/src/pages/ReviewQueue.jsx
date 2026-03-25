@@ -252,7 +252,7 @@ export default function ReviewQueue() {
                         )}
                       </div>
                       <p className="text-xs text-text-tertiary mb-2">
-                        by {sub.author || sub.developer_name || 'Unknown'}{' '}
+                        by {sub.author_name || sub.author || sub.developer_name || 'Unknown'}{' '}
                         {sub.submitted_at && (
                           <span>&middot; {formatTimeAgo(sub.submitted_at)}</span>
                         )}
