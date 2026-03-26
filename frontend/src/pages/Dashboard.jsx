@@ -46,7 +46,10 @@ export default function Dashboard() {
     plugins: plugins.length,
     downloads: plugins.reduce((sum, p) => sum + (p.download_count || p.downloads || 0), 0),
     revenue: plugins.reduce((sum, p) => sum + (p.revenue || 0), 0),
-    pending: plugins.filter((p) => p.status === 'pending' || p.status === 'in_review').length,
+    pending: plugins.filter((p) => {
+      const s = p.review_status || p.status;
+      return s === 'pending' || s === 'in_review';
+    }).length,
   };
 
   return (
@@ -199,7 +202,7 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <StatusBadge status={plugin.status || 'pending'} />
+                        <StatusBadge status={plugin.review_status || plugin.status || (plugin.is_published ? 'published' : 'pending')} />
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-sm text-text-secondary">

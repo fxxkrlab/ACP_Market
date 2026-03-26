@@ -20,6 +20,9 @@ class PluginListItem(BaseModel):
     currency: str = "usd"
     download_count: int = 0
     is_featured: bool = False
+    is_published: bool = False
+    latest_version: str | None = None
+    review_status: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

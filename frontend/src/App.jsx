@@ -10,6 +10,8 @@ import Revenue from './pages/Revenue';
 import ReviewQueue from './pages/ReviewQueue';
 import AdminPanel from './pages/AdminPanel';
 import ResetPassword from './pages/ResetPassword';
+import PluginDetail from './pages/PluginDetail';
+import DocsLayout from './pages/docs/DocsLayout';
 
 function ProtectedRoute({ children, minRole }) {
   const { user, loading } = useAuthStore();
@@ -39,6 +41,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Marketplace />} />
+        <Route path="/plugins/:pluginId" element={<PluginDetail />} />
+        <Route path="/categories" element={<Navigate to="/" />} />
+        <Route path="/docs/*" element={<DocsLayout />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<ProtectedRoute minRole="developer"><Dashboard /></ProtectedRoute>} />

@@ -51,7 +51,11 @@ async def list_plugins(
     page_size = min(page_size, 100)
     offset = (page - 1) * page_size
 
-    query = select(Plugin).where(Plugin.is_published.is_(True))
+    # When querying as author, show all own plugins (including unpublished)
+    if author_id is not None:
+        query = select(Plugin).where(Plugin.author_id == author_id)
+    else:
+        query = select(Plugin).where(Plugin.is_published.is_(True))
 
     # Search filter
     if q:
@@ -67,10 +71,6 @@ async def list_plugins(
     # Category filter
     if category:
         query = query.where(Plugin.categories.contains([category]))
-
-    # Author filter
-    if author_id is not None:
-        query = query.where(Plugin.author_id == author_id)
 
     # Pricing filter
     if pricing == "free":
@@ -95,29 +95,45 @@ async def list_plugins(
 
     query = query.offset(offset).limit(page_size)
 
-    result = await db.execute(query.options(selectinload(Plugin.author)))
+    result = await db.execute(
+        query.options(selectinload(Plugin.author), selectinload(Plugin.versions))
+    )
     plugins = result.scalars().all()
 
-    items = [
-        PluginListItem(
-            id=p.id,
-            plugin_id=p.plugin_id,
-            name=p.name,
-            description=p.description,
-            icon=p.icon,
-            color=p.color,
-            categories=p.categories,
-            author_name=p.author.display_name if p.author else "Unknown",
-            pricing_model=p.pricing_model,
-            price_cents=p.price_cents,
-            currency=p.currency,
-            download_count=p.download_count,
-            is_featured=p.is_featured,
-            created_at=p.created_at,
-            updated_at=p.updated_at,
-        ).model_dump()
-        for p in plugins
-    ]
+    items = []
+    for p in plugins:
+        # Compute latest version and review status from versions
+        latest_version = None
+        review_status = None
+        if p.versions:
+            sorted_versions = sorted(
+                p.versions, key=lambda v: v.created_at or datetime.min, reverse=True
+            )
+            latest_version = sorted_versions[0].version
+            review_status = sorted_versions[0].review_status
+
+        items.append(
+            PluginListItem(
+                id=p.id,
+                plugin_id=p.plugin_id,
+                name=p.name,
+                description=p.description,
+                icon=p.icon,
+                color=p.color,
+                categories=p.categories,
+                author_name=p.author.display_name if p.author else "Unknown",
+                pricing_model=p.pricing_model,
+                price_cents=p.price_cents,
+                currency=p.currency,
+                download_count=p.download_count,
+                is_featured=p.is_featured,
+                is_published=p.is_published,
+                latest_version=latest_version,
+                review_status=review_status,
+                created_at=p.created_at,
+                updated_at=p.updated_at,
+            ).model_dump()
+        )
 
     return APIResponse(data={
         "items": items,

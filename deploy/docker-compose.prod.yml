@@ -1,6 +1,6 @@
 services:
   acpmarket-backend:
-    image: ghcr.io/fxxkrlab/acp_market:0.1.1
+    image: ghcr.io/fxxkrlab/acp_market:0.2.0
     container_name: acpmarket-backend
     restart: unless-stopped
     env_file: .env.production

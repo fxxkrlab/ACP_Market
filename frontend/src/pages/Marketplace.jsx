@@ -106,12 +106,12 @@ export default function Marketplace() {
               <Link to="/categories" className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
                 Categories
               </Link>
-              <a
-                href="/docs"
+              <Link
+                to="/docs"
                 className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
                 Documentation
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -317,9 +317,9 @@ export default function Marketplace() {
             </p>
           </div>
           <div className="flex items-center gap-6">
-            <a href="/docs" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+            <Link to="/docs" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               Documentation
-            </a>
+            </Link>
             <a href="/terms" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               Terms
             </a>
