@@ -34,7 +34,7 @@ def _load_private_key() -> Ed25519PrivateKey | None:
         return _private_key
 
     _loaded = True
-    pem = settings.ED25519_PRIVATE_KEY
+    pem = settings.ED25519_PRIVATE_KEY.replace("\\n", "\n").strip()
     if not pem:
         logger.warning(
             "ED25519_PRIVATE_KEY not set — bundle signing disabled. "
