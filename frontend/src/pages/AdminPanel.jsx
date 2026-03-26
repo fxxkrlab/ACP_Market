@@ -38,8 +38,10 @@ export default function AdminPanel() {
   const [page] = useState(1);
   const debounceRef = useRef(null);
 
-  // ── Role edit state ──
-  const [editingUserId, setEditingUserId] = useState(null);
+  // ── Edit modal state ──
+  const [editModal, setEditModal] = useState({ open: false, user: null });
+  const [editForm, setEditForm] = useState({ display_name: '', email: '', role: '', is_active: true });
+  const [editSaving, setEditSaving] = useState(false);
 
   // ── Confirm modal state (replaces window.confirm) ──
   const [confirmModal, setConfirmModal] = useState({ open: false, user: null });
@@ -92,15 +94,38 @@ export default function AdminPanel() {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery, fetchUsers]);
 
-  // ── Role change ──
-  async function handleRoleChange(userId, newRole) {
+  // ── Open edit modal ──
+  function openEditModal(user) {
+    const uid = user.user_id || user.id;
+    setEditForm({
+      display_name: user.display_name || user.username || '',
+      email: user.email || '',
+      role: user.role || 'developer',
+      is_active: user.is_active !== false,
+    });
+    setEditModal({ open: true, user: { ...user, _uid: uid } });
+  }
+
+  // ── Save edit ──
+  async function handleEditSave() {
+    const uid = editModal.user?._uid;
+    if (!uid) return;
+    setEditSaving(true);
     try {
-      await api.patch(`/admin/users/${userId}`, { role: newRole });
-      setEditingUserId(null);
+      await api.patch(`/admin/users/${uid}`, {
+        display_name: editForm.display_name,
+        email: editForm.email,
+        role: editForm.role,
+        is_active: editForm.is_active,
+      });
+      setEditModal({ open: false, user: null });
       fetchUsers(searchQuery);
+      fetchStats();
     } catch (err) {
-      console.error('Failed to update role:', err);
-      alert('Failed to update user role.');
+      console.error('Failed to update user:', err);
+      alert('Failed to update user.');
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -249,7 +274,6 @@ export default function AdminPanel() {
                 {users.map((user) => {
                   const uid = user.user_id || user.id;
                   const initial = (user.display_name || user.username || 'U')[0].toUpperCase();
-                  const isEditing = editingUserId === uid;
 
                   return (
                     <tr key={uid} className="hover:bg-bg-gray/30 transition-colors">
@@ -273,46 +297,22 @@ export default function AdminPanel() {
                       </td>
 
                       {/* Role */}
-                      <td className="px-6 py-4 relative">
-                        {isEditing ? (
-                          <div className="absolute z-10 mt-1 bg-white border border-border rounded-lg shadow-lg py-1 min-w-[120px]">
-                            {['developer', 'reviewer', 'admin'].map((role) => (
-                              <button
-                                key={role}
-                                onClick={() => handleRoleChange(uid, role)}
-                                className={`block w-full text-left px-4 py-2 text-sm hover:bg-bg-gray transition-colors ${
-                                  user.role === role ? 'font-semibold text-primary' : 'text-text-primary'
-                                }`}
-                              >
-                                {role}
-                              </button>
-                            ))}
-                            <button
-                              onClick={() => setEditingUserId(null)}
-                              className="block w-full text-left px-4 py-2 text-xs text-text-tertiary hover:bg-bg-gray transition-colors border-t border-border"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <StatusBadge status={user.role || 'developer'} />
-                        )}
+                      <td className="px-6 py-4">
+                        <StatusBadge status={user.role || 'developer'} />
                       </td>
 
                       {/* Status */}
                       <td className="px-6 py-4">
-                        <StatusBadge
-                          status={user.is_active ? 'active' : 'suspended'}
-                        />
+                        <StatusBadge status={user.is_active ? 'active' : 'suspended'} />
                       </td>
 
                       {/* Actions */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setEditingUserId(isEditing ? null : uid)}
+                            onClick={() => openEditModal(user)}
                             className="p-1.5 rounded-lg hover:bg-bg-gray text-text-secondary hover:text-primary transition-colors"
-                            title="Edit role"
+                            title="Edit user"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -341,6 +341,79 @@ export default function AdminPanel() {
           </div>
         )}
       </div>
+
+      {/* Edit User Modal */}
+      <Modal
+        open={editModal.open}
+        onClose={() => setEditModal({ open: false, user: null })}
+        title="Edit User"
+        footer={
+          <>
+            <button
+              onClick={() => setEditModal({ open: false, user: null })}
+              className="px-4 py-2 text-sm font-medium text-text-secondary bg-bg-gray rounded-lg hover:bg-border transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleEditSave}
+              disabled={editSaving}
+              className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {editSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4 mt-2">
+          {/* Display Name */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Display Name</label>
+            <input
+              type="text"
+              value={editForm.display_name}
+              onChange={(e) => setEditForm((f) => ({ ...f, display_name: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+          </div>
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Email</label>
+            <input
+              type="email"
+              value={editForm.email}
+              onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+          </div>
+          {/* Role */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Role</label>
+            <select
+              value={editForm.role}
+              onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            >
+              <option value="developer">Developer</option>
+              <option value="reviewer">Reviewer</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          </div>
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Status</label>
+            <select
+              value={editForm.is_active ? 'active' : 'suspended'}
+              onChange={(e) => setEditForm((f) => ({ ...f, is_active: e.target.value === 'active' }))}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            >
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
 
       {/* Suspend/Activate Confirm Modal */}
       <Modal
