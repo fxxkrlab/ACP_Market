@@ -11,6 +11,7 @@ import ReviewQueue from './pages/ReviewQueue';
 import AdminPanel from './pages/AdminPanel';
 import ResetPassword from './pages/ResetPassword';
 import PluginDetail from './pages/PluginDetail';
+import ApiKeys from './pages/ApiKeys';
 import DocsLayout from './pages/docs/DocsLayout';
 
 function ProtectedRoute({ children, minRole }) {
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<ProtectedRoute minRole="developer"><Dashboard /></ProtectedRoute>} />
         <Route path="/plugins/submit" element={<ProtectedRoute minRole="developer"><PluginSubmit /></ProtectedRoute>} />
+        <Route path="/api-keys" element={<ProtectedRoute minRole="developer"><ApiKeys /></ProtectedRoute>} />
         <Route path="/revenue" element={<ProtectedRoute minRole="developer"><Revenue /></ProtectedRoute>} />
         <Route path="/review" element={<ProtectedRoute minRole="reviewer"><ReviewQueue /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute minRole="admin"><AdminPanel /></ProtectedRoute>} />

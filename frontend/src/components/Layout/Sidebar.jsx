@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Boxes, LayoutDashboard, Upload, CreditCard, ClipboardCheck, Shield } from 'lucide-react';
+import { Boxes, LayoutDashboard, Upload, CreditCard, Key, ClipboardCheck, Shield } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 import { checkRole } from '../../constants/roles';
 import { APP_VERSION } from '../../constants/version';
@@ -7,6 +7,7 @@ import { APP_VERSION } from '../../constants/version';
 const devLinks = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/plugins/submit', icon: Upload, label: 'Submit Plugin' },
+  { to: '/api-keys', icon: Key, label: 'API Keys' },
   { to: '/revenue', icon: CreditCard, label: 'Revenue' },
 ];
 
