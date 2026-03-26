@@ -7,14 +7,17 @@
 ## Features
 
 - **Plugin Registry** — Publish, version, and manage plugins with semantic versioning
+- **Plugin Detail Page** — Full plugin info, version history, pricing, download stats
 - **Review Workflow** — Multi-stage review pipeline (pending → approved / rejected / changes requested)
+- **Ed25519 Bundle Signing** — Automatic signing on upload, signature + hash in download headers, Panel-side verification
 - **Stripe Billing** — One-time & subscription pricing, automatic license generation, 70/30 revenue split
 - **Role-Based Access** — User, Developer, Reviewer, Admin, Super Admin
 - **HttpOnly Cookie Auth** — Secure JWT auth with refresh token rotation and Remember Me
 - **Password Reset** — SMTP + SendGrid email with token-based reset flow
-- **Admin Dashboard** — User management, platform stats, plugin moderation
-- **Developer Dashboard** — Plugin stats, revenue tracking, CSV export
+- **Admin Dashboard** — User management (edit name/email/role/status), platform stats, plugin moderation
+- **Developer Dashboard** — Plugin stats, revenue tracking, CSV export, accurate review status display
 - **Marketplace UI** — Search, category filter, sort, pagination
+- **Documentation Site** — 11-page docs (User Guide + Developer Guide) with API reference, SDK docs, design system spec, and more
 
 ## Screenshots
 
@@ -174,6 +177,7 @@ Copy `.env.example` to `.env` and customize:
 | `INIT_ADMIN_EMAIL` | Initial admin email | `admin@novahelix.org` |
 | `INIT_ADMIN_PASSWORD` | Initial admin password | `changeme` |
 | `COOKIE_SECURE` | Set `false` for local HTTP dev | `true` |
+| `ED25519_PRIVATE_KEY` | Ed25519 PEM private key (bundle signing) | (empty, signing disabled) |
 
 ## Project Structure
 
@@ -181,10 +185,10 @@ Copy `.env.example` to `.env` and customize:
 ACP_Market/
 ├── backend/
 │   └── app/
-│       ├── api/          # Route handlers (auth, plugins, billing, review, admin)
+│       ├── api/          # Route handlers (auth, plugins, billing, review, admin, signing)
 │       ├── models/       # SQLAlchemy ORM models
 │       ├── schemas/      # Pydantic request/response schemas
-│       ├── utils/        # Security, email, init helpers
+│       ├── utils/        # Security, email, signing, init helpers
 │       ├── config.py     # Pydantic Settings
 │       ├── database.py   # Async engine + session
 │       └── main.py       # FastAPI app entry
@@ -193,7 +197,7 @@ ACP_Market/
 │       ├── api/          # Axios client with cookie auth
 │       ├── components/   # Modal, Sidebar, PluginCard, StatusBadge
 │       ├── constants/    # Roles, version
-│       ├── pages/        # All page components
+│       ├── pages/        # All page components (incl. /docs site)
 │       ├── stores/       # Zustand auth store
 │       └── utils/        # formatNumber, formatCurrency, escapeCsvCell
 ├── docker-compose.yml

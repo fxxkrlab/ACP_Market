@@ -29,6 +29,7 @@ from app.schemas.plugin import (
     PluginVersionOut,
     UpdateAvailable,
 )
+from app.utils.signing import sign_bundle
 
 logger = logging.getLogger("acp_market.api.plugins")
 
@@ -171,6 +172,7 @@ async def get_plugin(
             min_panel_version=v.min_panel_version,
             bundle_size=v.bundle_size,
             bundle_hash=v.bundle_hash,
+            signature=v.signature,
             review_status=v.review_status,
             published_at=v.published_at,
             created_at=v.created_at,
@@ -235,6 +237,7 @@ async def get_version(
         min_panel_version=ver.min_panel_version,
         bundle_size=ver.bundle_size,
         bundle_hash=ver.bundle_hash,
+        signature=ver.signature,
         review_status=ver.review_status,
         published_at=ver.published_at,
         created_at=ver.created_at,
@@ -337,6 +340,9 @@ async def submit_plugin(
     db.add(plugin)
     await db.flush()
 
+    # Sign the bundle
+    signature = sign_bundle(content)
+
     # Create version record
     plugin_version = PluginVersion(
         plugin_id_fk=plugin.id,
@@ -347,6 +353,7 @@ async def submit_plugin(
         bundle_path=bundle_path,
         bundle_hash=bundle_hash,
         bundle_size=bundle_size,
+        signature=signature,
         review_status="pending",
     )
     db.add(plugin_version)
@@ -360,6 +367,7 @@ async def submit_plugin(
             "plugin_id": plugin.plugin_id,
             "version": version_str,
             "review_status": "pending",
+            "signed": signature is not None,
         },
     )
 
@@ -460,6 +468,9 @@ async def submit_version(
     with open(bundle_path, "wb") as f:
         f.write(content)
 
+    # Sign the bundle
+    signature = sign_bundle(content)
+
     plugin_version = PluginVersion(
         plugin_id_fk=plugin.id,
         version=version_str,
@@ -469,6 +480,7 @@ async def submit_version(
         bundle_path=bundle_path,
         bundle_hash=bundle_hash,
         bundle_size=bundle_size,
+        signature=signature,
         review_status="pending",
     )
     db.add(plugin_version)
@@ -482,6 +494,7 @@ async def submit_version(
             "plugin_id": plugin_id,
             "version": version_str,
             "review_status": "pending",
+            "signed": signature is not None,
         },
     )
 
@@ -545,7 +558,7 @@ async def download_bundle(
     # Increment download count
     if plugin:
         plugin.download_count += 1
-        await db.flush()
+        await db.commit()
 
     if not os.path.isfile(ver.bundle_path):
         raise HTTPException(
@@ -553,10 +566,17 @@ async def download_bundle(
             detail="Bundle file not found on server",
         )
 
+    headers = {
+        "X-Bundle-Hash": ver.bundle_hash,
+    }
+    if ver.signature:
+        headers["X-Bundle-Signature"] = ver.signature
+
     return FileResponse(
         path=ver.bundle_path,
         filename=f"{plugin_id}-{version}.zip",
         media_type="application/zip",
+        headers=headers,
     )
 
 

@@ -36,6 +36,7 @@ class PluginVersionOut(BaseModel):
     min_panel_version: str | None = None
     bundle_size: int = 0
     bundle_hash: str = ""
+    signature: str | None = None  # Ed25519 base64 signature
     review_status: str = "pending"
     published_at: datetime | None = None
     created_at: datetime | None = None

@@ -7,14 +7,17 @@
 ## 功能特性
 
 - **插件注册中心** — 发布、版本管理，支持语义化版本
+- **插件详情页** — 完整的插件信息、版本历史、定价、下载统计
 - **审核工作流** — 多阶段审核流水线（待审核 → 通过 / 拒绝 / 需修改）
+- **Ed25519 包签名** — 上传时自动签名，下载时附带签名+哈希，Panel 端可验证完整性
 - **Stripe 计费** — 一次性付费和订阅制，自动生成许可证，70/30 收入分成
 - **角色权限控制** — 用户、开发者、审核员、管理员、超级管理员
 - **HttpOnly Cookie 认证** — 安全 JWT 认证，刷新令牌轮换，记住我功能
 - **密码重置** — SMTP + SendGrid 邮件，基于令牌的重置流程
-- **管理后台** — 用户管理、平台统计、插件审核
-- **开发者仪表盘** — 插件统计、收入追踪、CSV 导出
+- **管理后台** — 用户管理（编辑用户名/邮箱/角色/状态）、平台统计、插件审核
+- **开发者仪表盘** — 插件统计、收入追踪、CSV 导出，正确显示审核状态
 - **插件市场 UI** — 搜索、分类筛选、排序、分页
+- **文档站** — 11 页完整文档（用户指南 + 开发者指南），包含 API 参考、SDK 文档、设计系统规范等
 
 ## 界面预览
 
@@ -172,6 +175,7 @@ npm run dev
 | `INIT_ADMIN_EMAIL` | 初始管理员邮箱 | `admin@novahelix.org` |
 | `INIT_ADMIN_PASSWORD` | 初始管理员密码 | `changeme` |
 | `COOKIE_SECURE` | 本地 HTTP 开发设为 `false` | `true` |
+| `ED25519_PRIVATE_KEY` | Ed25519 PEM 私钥（包签名） | (空，禁用签名) |
 
 ## 项目结构
 
@@ -179,10 +183,10 @@ npm run dev
 ACP_Market/
 ├── backend/
 │   └── app/
-│       ├── api/          # 路由处理 (auth, plugins, billing, review, admin)
+│       ├── api/          # 路由处理 (auth, plugins, billing, review, admin, signing)
 │       ├── models/       # SQLAlchemy ORM 模型
 │       ├── schemas/      # Pydantic 请求/响应模式
-│       ├── utils/        # 安全、邮件、初始化工具
+│       ├── utils/        # 安全、邮件、签名、初始化工具
 │       ├── config.py     # 配置管理
 │       ├── database.py   # 异步数据库引擎
 │       └── main.py       # FastAPI 应用入口
@@ -191,7 +195,7 @@ ACP_Market/
 │       ├── api/          # Axios 客户端 (Cookie 认证)
 │       ├── components/   # Modal, Sidebar, PluginCard, StatusBadge
 │       ├── constants/    # 角色、版本号
-│       ├── pages/        # 所有页面组件
+│       ├── pages/        # 所有页面组件 (含 /docs 文档站)
 │       ├── stores/       # Zustand 状态管理
 │       └── utils/        # 格式化工具函数
 ├── docker-compose.yml
