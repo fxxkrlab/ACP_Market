@@ -8,6 +8,12 @@ Version format: `MAJOR.MINOR.PATCH` starting at `0.1.0`
 
 ---
 
+## [0.2.5] - 2026-03-27
+
+### Fixed
+- **Detail API missing `latest_version`** — Plugin detail endpoint now returns `latest_version` (approved only), preventing Panel from showing "Update to v1.0.0" when v1.0.1 is installed
+- **Versions sorted newest-first** — Detail endpoint returns approved versions sorted by `created_at` descending
+
 ## [0.2.4] - 2026-03-27
 
 ### Fixed

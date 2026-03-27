@@ -173,6 +173,13 @@ async def get_plugin(
             detail="Plugin not found",
         )
 
+    approved = [
+        v for v in plugin.versions if v.review_status == "approved"
+    ]
+    approved_sorted = sorted(
+        approved, key=lambda v: v.created_at or datetime.min, reverse=True
+    )
+
     approved_versions = [
         PluginVersionOut(
             id=v.id,
@@ -186,9 +193,10 @@ async def get_plugin(
             published_at=v.published_at,
             created_at=v.created_at,
         ).model_dump()
-        for v in plugin.versions
-        if v.review_status == "approved"
+        for v in approved_sorted
     ]
+
+    latest_version = approved_sorted[0].version if approved_sorted else None
 
     detail = PluginDetail(
         id=plugin.id,
@@ -207,6 +215,7 @@ async def get_plugin(
         currency=plugin.currency,
         download_count=plugin.download_count,
         is_featured=plugin.is_featured,
+        latest_version=latest_version,
         versions=approved_versions,
         created_at=plugin.created_at,
         updated_at=plugin.updated_at,

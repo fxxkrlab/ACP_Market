@@ -61,6 +61,7 @@ class PluginDetail(BaseModel):
     currency: str = "usd"
     download_count: int = 0
     is_featured: bool = False
+    latest_version: str | None = None
     versions: list[dict] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
