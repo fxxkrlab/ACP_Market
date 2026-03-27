@@ -103,15 +103,24 @@ async def list_plugins(
 
     items = []
     for p in plugins:
-        # Compute latest version and review status from versions
+        # Compute latest approved version (pending/rejected versions are not user-facing)
         latest_version = None
         review_status = None
         if p.versions:
-            sorted_versions = sorted(
+            approved_versions = [
+                v for v in p.versions if v.review_status == "approved"
+            ]
+            all_sorted = sorted(
                 p.versions, key=lambda v: v.created_at or datetime.min, reverse=True
             )
-            latest_version = sorted_versions[0].version
-            review_status = sorted_versions[0].review_status
+            # latest_version = most recent approved version
+            if approved_versions:
+                approved_sorted = sorted(
+                    approved_versions, key=lambda v: v.created_at or datetime.min, reverse=True
+                )
+                latest_version = approved_sorted[0].version
+            # review_status = newest version's status (to show pending badge in admin)
+            review_status = all_sorted[0].review_status if all_sorted else None
 
         items.append(
             PluginListItem(
