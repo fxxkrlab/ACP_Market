@@ -8,6 +8,11 @@ Version format: `MAJOR.MINOR.PATCH` starting at `0.1.0`
 
 ---
 
+## [0.2.4] - 2026-03-27
+
+### Fixed
+- Footer version number not updated (was hardcoded as 0.2.1)
+
 ## [0.2.3] - 2026-03-27
 
 ### Changed
