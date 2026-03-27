@@ -8,6 +8,13 @@ Version format: `MAJOR.MINOR.PATCH` starting at `0.1.0`
 
 ---
 
+## [0.1.2] - 2026-03-27
+
+### Fixed
+- **`latest_version` returned pending versions** — Plugin list API showed unreviewed (pending) versions as the latest, causing Panel to display "Update Available" for versions not yet approved; now only returns approved versions
+
+---
+
 ## [0.1.1] - 2026-03-26
 
 ### Fixed
