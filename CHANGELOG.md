@@ -8,6 +8,11 @@ Version format: `MAJOR.MINOR.PATCH` starting at `0.1.0`
 
 ---
 
+## [0.2.3] - 2026-03-27
+
+### Changed
+- CI workflow now builds both backend and frontend GHCR images on tag push
+
 ## [0.2.2] - 2026-03-27
 
 ### Fixed
